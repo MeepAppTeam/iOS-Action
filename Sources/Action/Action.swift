@@ -27,6 +27,7 @@ public final class Action<Input, Element> {
 
     /// Bindable sink for inputs that triggers execution of action.
     public let inputs: AnyObserver<Input>
+    private let lastInputSubject = PublishSubject<Input>()
 
     /// Errors aggrevated from invocations of execute().
     /// Delivered on whatever scheduler they were sent from.
@@ -36,7 +37,7 @@ public final class Action<Input, Element> {
     /// Delivered on whatever scheduler they were sent from.
     public let elements: Observable<Element>
 
-    /// Whether or not we're currently executing. 
+    /// Whether or not we're currently executing.
     public let executing: Observable<Bool>
 
     /// Observables returned by the workFactory.
@@ -119,22 +120,31 @@ public final class Action<Input, Element> {
     public func execute(_ value: Input) -> Observable<Element> {
         defer {
             inputs.onNext(value)
+            lastInputSubject.onNext(value)
         }
 
-		let subject = ReplaySubject<Element>.createUnbounded()
+        let subject = ReplaySubject<Element>.createUnbounded()
 
-		let work = executionObservables
-			.map { $0.catch { throw ActionError.underlyingError($0) } }
+        let work = executionObservables
+            .map { $0.catch { throw ActionError.underlyingError($0) } }
 
-		let error = errors
-			.map { Observable<Element>.error($0) }
+        let error = errors
+            .map { Observable<Element>.error($0) }
 
-		work.amb(error)
-			.take(1)
-			.flatMap { $0 }
-			.subscribe(subject)
-			.disposed(by: disposeBag)
+        work.amb(error)
+            .take(1)
+            .flatMap { $0 }
+            .subscribe(subject)
+            .disposed(by: disposeBag)
 
-		return subject.asObservable()
+        return subject.asObservable()
+    }
+
+    @discardableResult
+    public func executeWithLastValue() -> Observable<Element> {
+        Observable.just(())
+            .withLatestFrom(lastInputSubject)
+            .withUnretained(self)
+            .flatMap { $0.execute($1) }
     }
 }
