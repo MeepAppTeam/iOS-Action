@@ -572,6 +572,7 @@
 					};
 					7F612ACB1D7F13B800B93BC5 = {
 						CreatedOnToolsVersion = 8.0;
+						LastSwiftMigration = "";
 						ProvisioningStyle = Automatic;
 					};
 					BE73AD1F1CDCD101006F8B98 = {

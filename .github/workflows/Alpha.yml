@@ -1,0 +1,37 @@
+name: AlphaRelease
+
+on:
+  pull_request:
+    types: [closed]
+    branches-ignore: [ develop, master ]
+
+jobs:
+  build:
+    if: github.event.pull_request.merged == true
+    name: Release-Alpha
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install SSH key
+        uses: shimataro/ssh-key-action@v2.4.0
+        with:
+          key: ${{ secrets.SSH_KEY }}
+          known_hosts: ${{ secrets.KNOWN_HOSTS }}
+          if_key_exists: ignore
+      - name: Fetch tags
+        run: git fetch --tags
+      - uses: actions/cache@v2
+        with:
+          path: vendor/bundle
+          key: ${{ runner.os }}-gems-${{ hashFiles('**/Gemfile.lock') }} # change your gemfile path
+          restore-keys: |
+            ${{ runner.os }}-gems-
+      - name: Bundle Install
+        run: |
+          bundle config path vendor/bundle
+          bundle install --jobs 4 --retry 3
+      - name: Specs Repo
+        run: bundle exec pod repo update
+      - name: Patch
+        run: bundle exec fastlane alpha
