@@ -27,7 +27,7 @@ public final class Action<Input, Element> {
 
     /// Bindable sink for inputs that triggers execution of action.
     public let inputs: AnyObserver<Input>
-    private let lastInputSubject = PublishSubject<Input>()
+    private let lastInputSubject = BehaviorSubject<Input?>(value: nil)
 
     /// Errors aggrevated from invocations of execute().
     /// Delivered on whatever scheduler they were sent from.
@@ -142,9 +142,7 @@ public final class Action<Input, Element> {
 
     @discardableResult
     public func executeWithLastValue() -> Observable<Element> {
-        Observable.just(())
-            .withLatestFrom(lastInputSubject)
-            .withUnretained(self)
-            .flatMap { $0.execute($1) }
+        guard let lastValue = try? lastInputSubject.value() else { return .empty() }
+        return execute(lastValue)
     }
 }
